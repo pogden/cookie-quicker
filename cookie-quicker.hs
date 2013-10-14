@@ -4,31 +4,29 @@ import Data.Label
 import Prelude hiding ((.), id)
 
 
-data GameState = GameState { _time :: Float
+data GameState = GameState { _time :: Float  -- seconds
                            , _cookies :: Float
                            , _cursors :: Int
                            , _grandmas :: Int
                            } deriving (Show, Eq)
 
-data Item = Item { _cost :: GameState -> Float
-                 , _effect :: GameState -> GameState
-                 , _removalEffect :: GameState -> GameState
-                 }
+data Building = Cursor
+              | Grandma deriving (Enum, Show)
 
-mkLabels [''GameState, ''Item]
+mkLabels [''GameState]
 
-type Action = GameState -> GameState
+data Action = Buy Building | Sell Building
 
-cursor = Item { _cost = \g -> 15 * (1.15 ^ (get cursors g))
-              , _effect = modify cursors (+1)
-              , _removalEffect = modify cursors (flip (-) 1)
-              }
+count :: Building -> (GameState :-> Int)
+count Cursor  = cursors
+count Grandma = grandmas
 
-grandma = Item { _cost = \g -> 100 * (1.15 ^ (get grandmas g))
-               , _effect = modify grandmas (+1)
-               , _removalEffect = modify grandmas (flip (-) 1)
-               }
+cost :: Building -> GameState -> Float
+cost building g = baseCost building * 1.15 ^ (get (count building) g)
 
+baseCost :: Building -> Float
+baseCost Cursor  =  15
+baseCost Grandma = 100 
             
 cps :: GameState -> Float
 cps g = 4 --manual clicking
@@ -37,21 +35,21 @@ cps g = 4 --manual clicking
 
 saveUp :: Float -> GameState -> GameState
 saveUp c g 
-  | c <= get cookies g = g
-  | otherwise          = (set cookies c)
-                         $ modify time (+ (c - (get cookies g)) / (cps g)) g 
-
-spend :: Float -> GameState -> GameState
-spend c g = modify cookies (\x -> x - c) g
+  | c <= (get cookies g) = g
+  | otherwise            = (set cookies c)
+                         $ modify time (+ (c - (get cookies g)) / (cps g)) g
 
 start = GameState { _time = 0, _cookies = 0, _cursors = 0, _grandmas = 0}
 
-buy :: Item -> GameState -> GameState
-buy item g = get effect item $ spend (get cost item g) $ saveUp (get cost item g) g
-
-sell :: Item -> GameState -> GameState
-sell item g = get removalEffect item $ modify cookies (+(0.5 * get cost item g)) g
-
 playSequence :: [Action] -> GameState
-playSequence = foldl (flip ($)) start
+playSequence = foldl (flip doAction) start
+
+doAction :: Action -> GameState -> GameState
+doAction (Buy  building) g = modify (count building) (+1)
+                           $ modify cookies (subtract (cost building g))
+                           $ saveUp (cost building g)
+                           $ g
+doAction (Sell building) g = modify (count building) (subtract 1)
+                           $ modify cookies (+ (cost building g))
+                           $ g
 
