@@ -27,6 +27,6 @@ state after saving up for, and buying a cursor, then a grandma.
     Prelude> :load cookie-quicker.hs
     [1 of 1] Compiling Main             ( cookies.hs, interpreted )
     Ok, modules loaded: Main.
-    *Main> playSequence [buy cursor, buy grandma]
+    *Main> playSequence [Buy Cursor, Buy Grandma]
     GameState {_time = 28.140244, _cookies = 0.0, _cursors = 1, _grandmas = 1}
 
