@@ -1,6 +1,8 @@
 {-# LANGUAGE TemplateHaskell, TypeOperators #-}
 import Control.Category
 import Data.Label
+import Data.List (minimumBy, nub, delete)
+import Data.Function (on)
 import Prelude hiding ((.), id)
 
 
@@ -11,11 +13,11 @@ data GameState = GameState { _time :: Float  -- seconds
                            } deriving (Show, Eq)
 
 data Building = Cursor
-              | Grandma deriving (Enum, Show)
+              | Grandma deriving (Ord, Eq, Enum, Bounded, Show)
 
 mkLabels [''GameState]
 
-data Action = Buy Building | Sell Building
+data Action = Buy Building | Sell Building deriving (Ord, Eq, Show)
 
 count :: Building -> (GameState :-> Int)
 count Cursor  = cursors
@@ -50,6 +52,18 @@ doAction (Buy  building) g = modify (count building) (+1)
                            $ saveUp (cost building g)
                            $ g
 doAction (Sell building) g = modify (count building) (subtract 1)
-                           $ modify cookies (+ (cost building g))
+                           $ modify cookies (+ (cost building g)/2)
                            $ g
 
+options :: GameState -> [Action]
+options g = fmap Buy [minBound..]
+            ++ fmap Sell (filter (g `hasA`) [minBound..])
+              where g `hasA` building = get (count building) g > 0
+
+optimallyOrder :: GameState -> [Action] -> [Action]
+optimallyOrder g xs = minimumBy (compare `on`
+                                    (get time . (foldl (flip doAction) g)))
+                                (eqPerms xs)
+
+eqPerms [] = [[]]
+eqPerms xs = [x:xt | x <- nub xs, xt <- eqPerms $ delete x xs]
