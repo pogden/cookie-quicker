@@ -1,10 +1,9 @@
 {-# LANGUAGE TemplateHaskell, TypeOperators #-}
+module Game.CookieClicker.Model where
+  
 import Control.Category
 import Data.Label
-import Data.List (minimumBy, nub, delete)
-import Data.Function (on)
 import Prelude hiding ((.), id)
-
 
 data GameState = GameState { _time :: Float  -- seconds
                            , _cookies :: Float
@@ -59,11 +58,3 @@ options :: GameState -> [Action]
 options g = fmap Buy [minBound..]
             ++ fmap Sell (filter (g `hasA`) [minBound..])
               where g `hasA` building = get (count building) g > 0
-
-optimallyOrder :: GameState -> [Action] -> [Action]
-optimallyOrder g xs = minimumBy (compare `on`
-                                    (get time . (foldl (flip doAction) g)))
-                                (eqPerms xs)
-
-eqPerms [] = [[]]
-eqPerms xs = [x:xt | x <- nub xs, xt <- eqPerms $ delete x xs]
